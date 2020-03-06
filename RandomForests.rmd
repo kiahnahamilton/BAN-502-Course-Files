@@ -1,0 +1,77 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 4 - Random Forests
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill
+
+**Libraries**
+```{r}
+library(tidyverse)
+library(caret)
+library(ranger)
+
+blood <- read_csv("Blood.csv")
+blood = blood%>%mutate(DonatedMarch = as_factor(as.character(DonatedMarch)))%>%
+mutate(DonatedMarch=fct_recode(DonatedMarch,"Yes" = "1","No" = "0"))
+view(blood)
+```
+
+**Task 1**
+```{r}
+set.seed(1234)
+train.rows =createDataPartition(y = blood$DonatedMarch, p=0.7, list = FALSE)
+train = blood[train.rows,]
+test = blood[-train.rows,]
+summary(train)
+```
+
+**Task 2**
+```{r}
+fit_control = trainControl(method="cv",number=10)
+set.seed(123)
+rf_fit = train(x=blood[,-5], y=blood$DonatedMarch,
+                 method = "ranger", 
+                 importance = "permutation",
+                 trControl = fit_control,
+               num.trees = 100)
+```
+
+
+**Task 3**
+```{r}
+varImp(rf_fit)
+rf_fit
+```
+  The most important variable is TotalDonations. The least important variable is Months since last donation.
+  
+**Task 4**
+```{r}
+predRF = predict.train(rf_fit, blood)
+head(predRF)
+```
+
+**Task 5**
+```{r}
+confusionMatrix(predRF, blood$DonatedMarch, positive = "Yes")
+```
+
+  The accuracy of this model on the training set is .89. The sensitivity is ~.59, and the specificity is ~.99.
+  
+**Task 6**
+
+  The accuracy of this model is much better than that of a naive model. In this model, the accuracy is .89, whereas in a naive model the accuracy is .76. Since the rate is much higher than that of the naive, it is safe to assume that this model would be better for use in making accurate predictions. 
+**Task 7**
+```{r}
+predRF2=predict(rf_fit,newdata = test)
+confusionMatrix(predRF2, test$DonatedMarch, positive = "Yes")
+```
+
+  This model performs similarly on the testing set as its accuracy is .87, which is what the value was in our training set. Along with that, our specifity and sensitivity values (.98 and .52) are in line with those of our training set as well. That being said, this appears to be a good model to base our predictions off of. 
+  
+**Task 8**`
+  This data might be used in the real-world in determining the likelihood of someone to donate blood regularly. A blood bank could use this data in terms of knowing which patients would be best to contact/how often to inform patients of upcoming blood drives in their area. The only concern I would have in using this model would be inaccurately identifying someone who did not donate in March. This could lead to accidentally informing the wrong people of blood drives, and thus lead to wasted efforts. 

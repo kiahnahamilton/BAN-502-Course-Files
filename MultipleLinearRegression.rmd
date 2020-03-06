@@ -1,0 +1,125 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 2 - Multiple Linear Regression & Special Issues Assignment 
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill
+
+**Libraries**
+```{r}
+options(tidyverse.quiet = TRUE)
+library(tidyverse)
+library(GGally)
+library(MASS)
+library(car)
+library(gridExtra)
+```
+
+**Task 1**
+```{r}
+bike=read.csv("hour.csv")
+```
+
+```{r}
+bike = bike%>%mutate(season = as_factor(as.character(season))) %>%
+  mutate(season = fct_recode(season,
+                             "Spring" = "1",
+                             "Summer" = "2",
+                             "Fall" = "3",
+                             "Winter" = "4"))%>%
+  mutate(yr = as_factor(as.character(yr)))%>%
+  mutate(mnth = as_factor(as.character(mnth)))%>%
+  mutate(hr = as_factor(as.character(hr)))%>%
+  mutate(holiday = as_factor(as.character(holiday)))%>%
+    mutate(holiday = fct_recode(holiday,
+                                "NotHoliday" = "0",
+                                "Holiday" = "1"))%>%
+   mutate(workingday = as_factor(as.character(workingday)))%>%
+    mutate(workingday = fct_recode(workingday,
+                                "NotWorkingDay" = "0",
+                                "WorkingDay" = "1"))%>%
+   mutate(weathersit = as_factor(as.character(weathersit)))%>%
+    mutate(weathersit = fct_recode(weathersit,
+                                "NoPrecip" = "1",
+                                "Misty" = "2",
+                                "LightPrecip" = "3",
+                                "HeavyPrecip" = "4"))%>%
+   mutate(weekday = as_factor(as.character(weekday)))%>%
+    mutate(weekday = fct_recode(weekday,
+                                "Sunday" = "0",
+                                "Monday" = "1",
+                                "Tuesday" = "2",
+                                "Wednesday" = "3",
+                                "Thursday" = "4",
+                                "Friday" = "5",
+                                "Saturday" = "6"))
+
+   
+```
+  
+  Before working with the data, it is important that "yr","mnth", and "hr" are converted into factors. We must do this because even though they are represented as numbers, they do not represent numerical data. By changing them into factors, we eliminate the possibility of them being manipulated in later steps. 
+  
+**Task 2**
+```{r}
+ggpairs(bike,columns = c(3:5,7:14,17))
+ggcorr(bike, label = TRUE)
+```
+
+  It appears that the temp and atemp appear to be best correlated with count, as they both have a correlation value of .4.
+  
+**Task 3**
+```{r}
+bx1<-ggplot(bike,aes(x=count,y=season))+
+  geom_boxplot()
+bx2<-ggplot(bike,aes(x=count,y=yr))+
+  geom_boxplot()
+bx3<-ggplot(bike,aes(x=count,y=mnth))+
+  geom_boxplot()
+bx4<-ggplot(bike, aes(x=count,y=holiday))+
+         geom_boxplot()
+bx5<-ggplot(bike,aes(x=count,y=weekday))+
+  geom_boxplot()
+bx6<-ggplot(bike,aes(x=count,y=workingday))+
+  geom_boxplot()
+bx7<-ggplot(bike,aes(x=count,y=weathersit))+
+  geom_boxplot()
+
+
+grid.arrange(bx1,bx2,bx3,bx4,bx5,bx6,bx7,ncol=3)
+
+```
+
+Based on these plots, the variables that I believe affect count are yr, holiday, workingday, and weathersit. The reason I believe this is due to the following. In the year 2012 (represented by 1), we can see that there were more rides counted than in 2011 (represented by 0). Likewise, it appears that more rides were captured on non-holidays than on holidays. Workingday appears to affect count as it shows that more rides were counted during workingdays than non. Weathersit also appears to have somewhat of an effect on count, but only on days with heavy precipitation as the number of rides counted on days that fit that category were exponentially smaller than others. Based on these plots, it appears that season, mnth, and weekday do not affect count. After looking at the plots, it appears that these 4 variables all have similar, if not the same amount of counts per ride per each respective season/month/weekday. 
+
+**Task 4**
+```{r}
+bike2 = bike%>%dplyr::select(-c(instant,dteday,registered,casual))
+
+allmod=lm(count~.,bike2)
+summary(allmod)
+
+emptymod=lm(count~1,bike2)
+summary(emptymod)
+
+forwardmod=stepAIC(emptymod,direction = "forward",scope = list(upper=allmod,lower=emptymod),trace=TRUE)
+summary(forwardmod)
+```
+  The variables included in this model are hr, atemp, yr, weathersit, season, mnth, hum, weekday, holiday, windspeed, temp, with count as the predictor variable. After review of this model, I would say that it does not match intuition and makes a fair representation of modeling the count of rides based on these variables. It does not appear to have multicollinearity as most of the coeffiecients are significant according to their p-values, but r-squared is not too high. 
+  
+**Task 5**
+```{r}
+backwardmod = stepAIC(allmod,direction="backward",trace=TRUE)
+summary(backwardmod)
+```
+
+  This step differs from the forward model in a number of ways, the most obvious being that it uses a smaller and less detailed number of variables. Along with that, the r-squared value of .38 is almost half of what we saw in the forward model, which was .68. Other than that, the coefficients for the variables represented all significant values aside from workingday and weathersit.
+  
+**Task 6**
+  Workingday is the variable that represents whether or not a day is recognized as a day that people typically work, with 1 being a workingday and 0 being a holiday or weekend. Although we see workingday being listed as NA in the allmod model, it is represented by other variables. These other variables are holiday and weekend, which we know because they are the factors that play into whether or not a day is considered a workingday or not. 
+  
+**Task 7**
+  Based on the r-squared value of the forward model, I would say that this model would be fine to use for predictions as the r-squared is .68, which is close to 1. However, based on the backward model I would be cautious as the value is .38, which is further from 1. From this, I would say that it has potential to be used, however I would not use it as a standalone model as there is room for error. 

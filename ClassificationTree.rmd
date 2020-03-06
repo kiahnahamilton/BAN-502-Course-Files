@@ -1,0 +1,117 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 4 - Classification Trees 
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill
+
+***Libraries***
+```{r}
+library("tidyverse")
+library("caret")
+library("rpart")
+library("rattle")
+library("RColorBrewer")
+
+parole <- read_csv("parole.csv")
+parole = parole%>%mutate(male = as_factor(as.character(male)))%>%
+mutate(male=fct_recode(male,"male" = "1","female" = "0"))
+parole = parole%>% mutate(race =as_factor(as.character(race)))%>% mutate(race =fct_recode(race,"white" = "1","other" = "2"))
+parole = parole%>% mutate(state =as_factor(as.character(state)))%>% mutate(state =fct_recode(state,"other" = "1","Kentucky" = "2","Louisiana" = "3","Virginia" = "4"))
+parole = parole%>% mutate(crime =as_factor(as.character(crime)))%>% mutate(crime =fct_recode(crime,"other" = "1","larceny" = "2","drug-related" = "3","driving-related" = "4"))
+parole = parole%>%mutate(multiple.offenses = as_factor(as.character(multiple.offenses)))%>%
+mutate(multiple.offenses=fct_recode(multiple.offenses,"multiple offenses" = "1","other" = "0"))
+parole = parole%>%mutate(violator = as_factor(as.character(violator)))%>%
+mutate(violator=fct_recode(violator,"violated" = "1","without" = "0"))
+view(parole)
+```
+
+***Task 1***
+```{r}
+set.seed(12345)
+train.rows =createDataPartition(y = parole$violator, p=0.7, list = FALSE)
+train = parole[train.rows,]
+test = parole[-train.rows,]
+```
+
+***Task 2***
+```{r}
+tree1 = rpart(violator ~., train, method="class")
+fancyRpartPlot(tree1)
+```
+
+***Task 3***
+  
+  Based on this tree, we would classify a 40 year-old parolee from Louisiana who served a 5 year sentence (white) as someone who has an 8% chance of violating parole. We found this by starting at the top of the tree, choosing no for state, yes for race = white, and led us to time served >= 3.5 years. Since we are classifying someone who served 5 years, we would stop here. 
+We would classify a 40-year old parolee from Louisiana who served a 5 year sentence (not white) as someone who has a 2% chance of completing parole without violation. We found this by again starting at the top of the tree, choosing no for state, no for race = white, which led us to completed parole without violation. 
+
+***Task 4***
+```{r}
+printcp(tree1)
+plotcp(tree1)
+```
+  We should use the cp value of .03 as it has the lowest cross validation error. 
+  
+***Task 5***
+```{r}
+tree2 = prune(tree1,cp= tree1$cptable[which.min(tree1$cptable[,"xerror"]),"CP"])
+printcp(tree2)
+```
+  There are no variables used in tree construction as it says that variables used are character(0). 
+  
+***Task 6***
+```{r}
+treepred=predict(tree1,train,type="class")
+head(treepred)
+confusionMatrix(treepred,train$violator,positive = "violated")
+```
+
+***Task 7***
+```{r}
+treepred2=predict(tree1,test,type="class")
+head(treepred)
+confusionMatrix(treepred2,test$violator,positive = "violated")
+```
+  The quality of this model is fairly good as it has an accuracy of .9 (rounded from .896). By using this model from the test set, we can see that we would be ~90% accurate when predicting whether or not someone violated their parole, which is similar to the accuracy of the training set. 
+  
+***Task 8***
+```{r}
+blood <- read_csv("Blood.csv")
+blood = blood%>%mutate(DonatedMarch = as_factor(as.character(DonatedMarch)))%>%
+mutate(DonatedMarch=fct_recode(DonatedMarch,"Yes" = "1","No" = "0"))
+view(blood)
+```
+
+***Task 9***
+```{r}
+set.seed(1234)
+train.rows =createDataPartition(y = blood$DonatedMarch, p=0.7, list = FALSE)
+train2 = blood[train.rows,]
+test2 = blood[-train.rows,]
+
+tree3 = rpart(DonatedMarch ~., train2, method="class")
+fancyRpartPlot(tree3)
+printcp(tree3)
+plotcp(tree3)
+```
+  The best complexity parameter for this model should be .238.
+  
+***Task 10***
+```{r}
+tree4 = prune(tree3,cp= tree3$cptable[which.min(tree3$cptable[,"xerror"]),"CP"])
+printcp(tree4)
+
+treepred3 = predict(tree4, train2, type = "class")
+head(treepred3)
+confusionMatrix(treepred3,train2$DonatedMarch,positive="Yes") 
+
+treepred4 = predict(tree4,test2,type="class")
+head(treepred4)
+confusionMatrix(treepred4,test2$DonatedMarch,positive = "Yes")
+```
+
+  Based on these two models, it appears that the training set would be the preferred model to choose as it has an accuracy of .813, rather than the accuracy of the testing set, which is .75. Based on this, we can say that the the training set does a much better job of predicting if someone violated their parole. 

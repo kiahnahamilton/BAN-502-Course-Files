@@ -1,0 +1,169 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 5, Assignment 1 - Parameter Selection, Neural Networks & Ensemble Models
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill
+
+**Libraries/Data**
+```{r}
+library(tidyverse)
+library(caret)
+library(nnet)
+library(rpart)
+library(caretEnsemble)
+
+parole <- read_csv("parole.csv")
+parole = parole%>%mutate(male =as.factor(male))%>%mutate(male =fct_recode(male, "Female" = "0", "Male" = "1"))%>%mutate(race =as.factor(race))%>%mutate(race =fct_recode(race, "White"="1", "Other"="2"))%>%mutate(state =as.factor(state))%>%mutate(state =fct_recode(state, "Other"="1","KY"="2","LA"="3","VA"="4"))%>%mutate(crime =as.factor(crime))%>%mutate(crime =fct_recode(crime, "Other"="1","Larceny"="2","Drug"="3","Driving"="4"))%>%mutate(multiple.offenses =as.factor(multiple.offenses))%>%mutate(multiple.offenses =fct_recode(multiple.offenses, "Yes"="1","No"="0"))%>%mutate(violator =as.factor(violator))%>%mutate(violator =fct_recode(violator, "Yes"="1","No"="0"))
+```
+
+**Task 1**
+```{r}
+set.seed(12345)
+train.rows =createDataPartition(y = parole$violator, p=0.7, list = FALSE)
+train = parole[train.rows,]
+test = parole[-train.rows,]
+```
+
+**Task 2**
+```{r}
+nnGrid<-expand.grid(size = 12, decay = 0.1)
+fit_control = trainControl(method = "cv",  
+                           number = 10) 
+nnetGrid <-  expand.grid(size = 12, decay = 0.1)
+
+set.seed(1234)
+nnetBasic = train(x=as.data.frame(parole[,-1]), y= parole$violator,
+                 method = "nnet",
+                 tuneGrid = nnGrid,
+                 trControl = fit_control,
+                 trace = FALSE)
+```
+
+ **Task 3**
+```{r}
+nnetBasic
+predNetBasic = predict(nnetBasic, train)
+confusionMatrix(predNetBasic, train$violator, positive = "Yes")
+```
+  This model appears to be a good model of determining whether or not someone will violate their parole as it has a confidence level of 99.2% based on a 95% confidence interval. That being said, we can have confidence when using this model in correctly identifying those who may violate their parole. 
+
+  **Task 4**
+```{r}
+nnetGrid2 =expand.grid(size = seq(from = 1,to=12,by = 1),
+decay = seq(from = 0.1, to = 0.5, by = 0.1))
+fitControl2 = trainControl(method = "cv", 
+                           number = 10)
+set.seed(1234)
+nnet2=train(x=as.data.frame(parole[,-1]), y= parole$violator,
+                 method = "nnet",
+                 trControl = fitControl2,
+                 tuneGrid = nnetGrid2,
+                 trace = FALSE)
+
+```
+
+
+  **Task 5**
+```{r}
+nnet2
+predNetBasic2 = predict(nnet2, train)
+confusionMatrix(predNetBasic2, train$violator, positive = "Yes")
+```
+  This model appears to be a good predictor of whether or not someone will violate their parole as it has a confidence level of 99.2%. That being said, this means that there will be a very slim chance that someone is inccorectly predicted as havig violated their parole, based on other variables. 
+  **Task 6**
+```{r}
+nnetBasic
+predNetBasic3 = predict(nnetBasic,test)
+confusionMatrix(predNetBasic3,test$violator, positive = "Yes")
+```
+ I am not sure that this model is of the best quality as the accuracy, sensitivty, and specifity values are all 1.0 instead of a decimal. Due to the amount of same values, I believe this may not be the best model.
+ 
+  **Task 7**
+```{r}
+nnet2
+predNetBasic4 = predict(nnet2, test)
+confusionMatrix(predNetBasic4, test$violator, positive = "Yes")
+```
+
+  The testing set based on the model from task 4 appears to not be a good indicator of predicting violation of parole. I believe that this due to the sensitivity, specificity and balanced accuracy all having the value of 1 rather than a decimal. This leads me think that this set may be experiencing some form of overfitting. 
+
+  **Task 8**
+```{r}
+plot(nnet2)
+```
+
+  It appears that the model from task 2 does have overfitting as the plot only shows one line of data. Likewise, the model from task 4 will not run as it says there are no tuning parameters with more than one value, which leads me to believe it may be overfitted. 
+
+
+  **Task 9**
+```{r}
+control = trainControl(method = "cv",
+                       number = 5,
+                       savePredictions = "final",
+                       classProbs=TRUE,
+                       summaryFunction = twoClassSummary)
+
+model_list = caretList(
+  x=as.data.frame(train[,-9]),y=(train$violator),
+  metric = "ROC",
+  trControl=control,
+  methodList=c("glm"),
+  tuneList=list(
+    rf = caretModelSpec(method="ranger", tuneLength=6),
+    rpart = caretModelSpec(method="rpart", tuneLength=6),
+    nn = caretModelSpec(method = "nnet",tuneLength=6,trace=FALSE))
+    )
+
+ensemble = caretEnsemble(
+  model_list, 
+  metric="ROC",
+  trControl=trainControl(
+    method = "cv", 
+    number= 5, 
+    summaryFunction=twoClassSummary,
+    classProbs=TRUE
+    ))
+summary(ensemble)
+
+pred_ensemble_train = predict(ensemble, train, type = "raw")
+cf1=confusionMatrix(pred_ensemble_train,train$violator)
+print(cf1)
+pred_ensemble_test = predict(ensemble, test, type = "raw")
+cf2=confusionMatrix(pred_ensemble_test,test$violator)
+print(cf2)
+```
+  The models in this ensemble appear to be somewhat correlated, however I would not say that this corelation is incredibly strong. The resulting ROC is .81, which is not a very good indicator of this being a good model. As for the testing and training sets, the training set appears to be a good indicator of predicting a violation of parole as its accuracy is a .92. The test set, however, does not seem as strong as its accuracy is a .88.
+
+  **Task 10**  
+```{r}
+set.seed(111)
+stack = caretStack(
+  model_list,
+  method ="glm",
+  metric ="ROC",
+  trControl = trainControl(
+    method = "cv", #k-fold cross-validation
+    number = 5, #5 folds
+    savePredictions = "final",
+    classProbs = TRUE,
+    summaryFunction = twoClassSummary
+  )
+)
+
+print(stack)
+
+pred_stack = predict(stack, train, type = "raw")
+cf3<-confusionMatrix(pred_stack,train$violator)
+print(cf3)
+pred_stack_test = predict(stack, test, type = "raw")
+cf4<-confusionMatrix(pred_stack_test,test$violator)
+print(cf4)
+```
+  
+  In regards to AUC, the model performs very as its AUC value is ~.82. On the training set, the model performs very well as it has an accuracy of .92 in predicting if someone violated their parole. The testing set, while still good, does not perform as well as our training set as its accuracy value is .88, similar to our ensemble model. 
+ 

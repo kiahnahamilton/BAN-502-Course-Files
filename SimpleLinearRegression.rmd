@@ -1,0 +1,100 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 2 - Simple Linear Regression & Correlation
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill
+
+**Libraries**
+```{r Libraries}
+library(tidyverse)
+library(GGally)
+library(car)
+library(lmtest)
+```
+  
+**Task 1**
+```{r Task 1}
+air = airquality 
+```
+This dataset contains 153 observations of data spread across 6 variables. There is a large amount of data missing from the Ozone column. There is also data missing from the Solar.R column. It appears that Ozone is likely to be the response (Y) variable.     
+
+**Task 2** 
+```{r Task 2}
+air2=air%>%drop_na()
+```
+This new dataset contains 111 rows spread across 6 columns. 
+
+**Task 3**
+```{r Task 3}
+ggpairs(air2)
+ggcorr(air2,label=TRUE)
+```
+  The variable most strongly correlated with the Ozone variable appears to be Temp with a corelation of .7. The variable least strongly correlated with the Ozone variable appears to be Month with a correlation of .143, as well as as Day which has a correlation of .0.  
+  
+**Task 4**
+```{r Task4}
+ggplot(air2, aes(x=Temp,y=Ozone))+
+  geom_point()
+```
+
+  Looking at this plot, we can see that there is a fairly positive relationship between Temperature and Ozone. As the Temperature rises, the Ozone levels also appear to increase. For the most part, the points follow a positive trend, however there are some outliers we see as we approach the temperatures in the 80-90 range that have exponentially higher Ozone levels than others that fall within that range.  
+
+**Task 5**
+```{r Task 5}
+#Part A:
+model1 = lm (Ozone ~ Temp, air2)
+summary(model1)
+#Part B:
+confint(model1)
+```
+  **5A**  Based on this model we can see that it may not necessarily be the best model to follow as our r-squared value is ~.5. Since it lies directly between 0 and 1, it gives reason to believe that it may not be the strongest model to follow for our prediction as there lies more room for errors.However, this does not mean that it isn't necessarily good or bad, it just means to proceed with caution. With that, our level of significance for the predictor variable, Temp, is <2e-16. Based off this, we can see that this value has a high level of significance, and thus leads us to believe that these variables are in fact correlated with one another. 
+  
+**Task 6**
+```{r Task 6}
+ggplot(air2, aes(x=Temp,y=Ozone))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+```
+
+**Task 7**
+```{r}
+testdata = data.frame("Temp" = c(80))
+predict(model1, newdata = testdata, interval = "predict")
+```
+
+**Task 8**
+```{r}
+#assumption1: 
+ggplot(air2, aes(x=Temp,y=Ozone))+
+  geom_point()
+#assumption2: 
+dwtest(model1)
+#assumption3: 
+air2 = air2 %>% mutate(resid1 = model1$residuals) 
+ggplot(air2,aes(x=Temp,y=resid1)) + geom_point() + theme_bw()
+#assumption 4: 
+ggplot(air2,aes(x=resid1)) + geom_histogram() + theme_bw()
+qqPlot(model1)
+```
+  
+  **Assumption 1 - The predictor & response variable have a linear relationship** 
+  Based on the plot, we can see that there is a positive linear relationship between the Temp and Ozone variables. 
+  
+  **Assumption 2 - Model errors (residuals) are independent**
+  After running the DW statistic for our model1, we see that the p-value of this model is .21. Since this value is greater than .05, we can assume that the residuals are in fact independent. 
+  
+  **Assumption 3 - Model residuals exhibit constant variance**
+  Based on the plot to examine the variance, we can see that the variance of residuals seems to remain constant throughout the plot. There are a few that stray, however the majority are constant. 
+  
+  
+  **Assumption 4 - Model residuals are Normally-distributed** 
+  Based off this histogram, it does not appear that the residuals follow a normal bell-shaped distribution. Along with that, there do appear to e outliers at the 50, 75, and ~125 marks on the x-axis. 
+  
+  **Task 9**  
+  The model created in Task 5 could be used by those doing research regarding the climate in order to predict how the temperature could impact the Ozone levels. Based on the r-squared value being a .5, however, I would use caution when using this model. This value gives reason to believe that this model is not the strongest as the value lies directly between 0 and 1.  
+  

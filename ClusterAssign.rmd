@@ -1,0 +1,121 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 6 - Clustering Assignment
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill
+
+```{r}
+library("tidyverse")
+library("cluster")
+library("factoextra")
+library("dendextend")
+
+trucks <- read_csv("trucks.csv")
+```
+
+**Task 1**
+```{r}
+ggplot(trucks, aes(x=Distance,y=Speeding))+
+  geom_point()
+```
+  There appears to be natural clustering within the 25-75 mile range with amounts of speeding around 0-12%, and again at the distance of 50 and amount of speeding around 25-45%. Likewise, there also appears to be natural clustering in the distance of ~150-200 with the amount of speeding around 0-20%.
+  
+  
+  **Task 2**
+```{r}
+trucks2 <- trucks %>% select("Distance", "Speeding")
+summary(trucks2)
+
+trucks_scaled = as.data.frame(scale(trucks2))
+summary(trucks_scaled)
+```
+**Task 3**
+```{r}
+set.seed(1234)
+cluster1<-kmeans(trucks2,2)
+fviz_cluster(cluster1,trucks2)
+```
+  In this cluster (2), it appears that the lower values for distance (-1,0) are more centralized around 0-4% speeding by drivers. In the other cluster (1), it appears that the majority of speeding is done in ~1.5% of the drivers total driving time, with more values beginning to be scattered as the percentage goes up. 
+
+
+```{r}
+set.seed(123)
+fviz_nbclust(trucks2,kmeans,method = "wss")
+set.seed(123)
+fviz_nbclust(trucks2,kmeans, method = "silhouette")
+```
+There does not appear to be a consensus between the two. The WSS method gives us an optimal number of 4, whereas the silhouette method gives us an optimal number of 5. 
+
+**Task 5**
+```{r}
+set.seed(1234)
+cluster2<-kmeans(trucks_scaled,4)
+cluster2
+fviz_cluster(cluster2,trucks_scaled)
+
+set.seed(1234)
+cluster3<-kmeans(trucks_scaled,5)
+fviz_cluster(cluster3,trucks_scaled)
+```
+
+
+  **Task 6**
+ For the first cluster, it appears that k1 has the biggest spread of data points. There is some interaction between the higher end of k1 and k4. Likewise, there is overlap of k2 and k4. On the lower end of k1, it meets with k3. In the second model, it appears that k1 has a much smaller spread than our first cluster, as it errs more towards the higher end of our plot. On the lower end (-1,0) we see interaction between k3 and k5. On the higher end (1,2,3) we see k1 meet the top of k4, and then k4 meets k2. I would say that both clusters are good models of the data. 
+
+
+  
+```{r}
+wine<-read_csv("wineprice.csv")
+wine2<-wine%>%select("Price","WinterRain","AGST","HarvestRain","Age")
+wine_scaled<-as.data.frame(scale(wine2))
+summary(wine_scaled)
+```
+
+
+  **Task 7**
+```{r}
+set.seed(123)
+fviz_nbclust(wine_scaled,kmeans,method = "wss")
+set.seed(123)
+fviz_nbclust(wine_scaled,kmeans, method = "silhouette")
+
+```
+
+For these models, it appears that there is a consensus that the optimal number of clusters is 6. 
+
+  **Task 8**
+```{r}
+set.seed(1234)
+cluster4<-kmeans(wine_scaled,6)
+fviz_cluster(cluster4,wine_scaled)
+```
+
+
+  **Task 9**
+```{r}
+m = c( "average", "single", "complete", "ward")
+names(m) = c( "average", "single", "complete", "ward")
+
+ac = function(x) {
+  agnes(wine_scaled, method = x)$ac
+}
+map_dbl(m, ac)
+hc = agnes(wine_scaled, method = "ward")
+pltree(hc, cex = 0.6, hang = -1, main = "Agglomerative Dendrogram")
+plot(hc, cex.axis= 0.5) 
+rect.hclust(hc, k = 5, border = 2:6)
+```
+
+
+  **Task 10**
+```{r}
+hc2 = diana(wine_scaled)
+pltree(hc2, cex = 0.6, hang = -1, main = "Divisive Dendogram")
+plot(hc2, cex.axis= 0.5) 
+rect.hclust(hc2, k = 5, border = 2:6)
+```

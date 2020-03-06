@@ -1,0 +1,145 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 3 Assignment 2 - Classification & Logistic Regression
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill
+***Libraries***
+```{r}
+library("tidyverse")
+library("MASS")
+library("caret")
+library("ROCR")
+
+parole <- read_csv("parole.csv")
+view(parole)
+
+
+parole = parole%>%mutate(male = as_factor(as.character(male)))%>%
+mutate(male=fct_recode(male,"male" = "1","female" = "0"))
+parole = parole%>% mutate(race =as_factor(as.character(race)))%>% mutate(race =fct_recode(race,"white" = "1","other" = "2"))
+parole = parole%>% mutate(state =as_factor(as.character(state)))%>% mutate(state =fct_recode(state,"other" = "1","Kentucky" = "2","Louisiana" = "3","Virginia" = "4"))
+parole = parole%>% mutate(crime =as_factor(as.character(crime)))%>% mutate(crime =fct_recode(crime,"other" = "1","larceny" = "2","drug-related" = "3","driving-related" = "4"))
+parole = parole%>%mutate(multiple.offenses = as_factor(as.character(multiple.offenses)))%>%
+mutate(multiple.offenses=fct_recode(multiple.offenses,"multiple offenses" = "1","other" = "0"))
+parole = parole%>%mutate(violator = as_factor(as.character(violator)))%>%
+mutate(violator=fct_recode(violator,"violated" = "1","without" = "0"))
+view(parole)
+
+```
+
+
+
+```{r}
+set.seed(12345)
+train.rows=createDataPartition(y=parole$violator,p=.7,list=FALSE)
+train=parole[train.rows,]
+test=parole[-train.rows,]
+```
+
+
+```{r}
+ggplot(train, aes(x=male,fill=violator))+
+  geom_bar(position="fill")
+ggplot(train, aes(x=crime,fill=violator))+
+  geom_bar(position="fill")
+ggplot(train, aes(x=state,fill=violator))+
+  geom_bar()
+ggplot(train, aes(x=multiple.offenses,fill=violator))+
+  geom_bar(position="fill")
+ggplot(train, aes(x=multiple.offenses,fill=violator))+
+  geom_bar()
+ggplot(train, aes(x=violator,y=time.served))+
+  geom_boxplot()
+ggplot(train, aes(x=violator,y=max.sentence))+
+  geom_boxplot()
+ggplot(train, aes(x=violator,y=age))+
+  geom_boxplot()
+
+
+```
+My thought process in doing this was that categorical data would be best represented by bar charts since the data either does or does not belong to a certain category. The numerical data I put in box plots in order to see if there were any outliers within the numeric values, and if so to see where they lay. 
+
+
+```{r}
+mod1=glm(violator ~ state, train, family = "binomial" )
+summary(mod1)
+```
+  From this model, we see that someone in Louisiana is more likely to violate their parole, as the estimate is the highest at a 1.41. Following that, someone in Virginia is least likely to violate their parole as that has an estimate of -2.1. The AIC value is 283.18. From looking at just this model on its own, we cannot tell if this model is necessarily good or bad as we do not yet have another value to compare this AIC to, and thus are unsure if this value makes this a good or bad model for prediction. 
+
+
+
+```{r}
+allmod = glm(violator ~., train, family="binomial")
+summary(allmod)
+emptymod=glm(violator~1,train,family="binomial")
+summary(emptymod)
+
+
+
+```
+  Looking at these models, we see that the full model would be preferred over the empty model due to the fact that it has the lower AIC value of 268.09, versus a value of 342.04. That being said, the most significant values appear to be attached to the variables of multiple offenses, and state. 
+  
+ 
+```{r}
+mod2 = glm(violator ~ state + multiple.offenses + race, train, family = "binomial")
+summary(mod2)
+```
+  From this model, we see that we have an AIC value of 258.98, which is lower than the full model, which had an AIC of 268.09. This is a good sign as it shows we are closer to a model which fits the predictions. We can see that state and multiple offenses still play a role in predicting the likelihood of whether or not someone will violate their parole. It appears that someone in Virginia would now be least likely to violate their parole, as well as someone who has not committed multiple offenses. 
+
+
+```{r}
+parolee1 = data.frame(state="Louisiana",multiple.offenses="multiple offenses",race="white")
+predict(mod2,parolee1,type="response")
+
+parolee2 = data.frame(state="Kentucky",multiple.offenses = "other",race="other")
+predict(mod2,parolee2,type="response")
+
+
+```
+The probability of a parole violation from a white person from Louisiana with multiple offenses is .34, or 34%. The probability of a parole violation from someone with a race other than white from Kentucky with multiple offenses is .21, or 21%. 
+
+
+```{r}
+#predictions = predict(mod1, type = "response")
+#ROCRpred = prediction(predictions, train$violator)
+#ROCRperf=performance(ROCRpred,"tpr","fpr")
+#plot(ROCRpref,colorize=TRUE,print.cutoffs.at=seq(0,1,by=.1),text.adj=c(-0.2,1.7))
+#as.numeric(performance(ROCRpred,"auc")@y.values)
+```
+
+```{r}
+#table(train$violator,predictions>.207)
+#sensitivity = (24/(24+34))
+#spec = (384/(384+31))
+#accuracy = ((384+24)/(384+34+31+24))
+```
+  The accuracy of the training set from task 7 is .86. The sensitivity is .41, and the specificity is .93. The implications of incorrectly classifying a parolee is that it may lead someone to being falsely incarcerated for a crime they did not commit. Along with that, it could affect the amount of time they spend in jail, and those that deserve an earlier release may actually be in the system for longer. 
+
+```{r}
+#opt.cut=function(perf,pred){
+  #cut.ind=mapply(FUN=function(x,y,p){
+    #d=(x-0)^2+(y-1)^2
+    #ind=which(d==min(d))
+    #c(sensitivity = y[ind],specificity=1-x[ind],
+      #cutoff=p[ind])
+  #},perf@x.values,perf@y.values,pred@cutoffs)
+#}
+#print(opt.cut(ROCRperf,ROCRpred))
+```
+
+  The threshold is .470.
+  
+```{r}
+#t2<-table(train$violator,predictions>1)
+#(t2[1])/nrow(train)
+#t1<-table(train$violator,predictions>.470)
+#print(t1)
+#(t1[1])/nrow(train)
+```
+  The vales for accuracy are the same at .88. Based of this, we can say that this model is fairly accuracte in determining whether or not someone will violate their parole. 
+  

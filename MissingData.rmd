@@ -1,0 +1,66 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Module 4 - Missing Data Assignment
+
+## Kiahna Hamilton
+
+### BAN 502 - Dr. Hill 
+
+***Libraries / Task 1***
+```{r}
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(VIM)
+  library(mice)
+})
+library(tidyverse)
+library("VIM")
+library("mice")
+
+
+grades <- read_csv("class-grades.csv")
+summary(grades)
+
+```
+  There are 11 NAs total in this dataset. The variables from which the data is missing are tutorial (1), midterm (3), takehome (3) and final (4).
+
+***Task 2***  
+```{r}
+vim_plot = aggr(grades, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+  There does appear to be systematic missingness. It looks lke there is one case missing data for midterm and takehome. The other cases appear to only be missing singular pieces of data. 
+
+***Task 3***  
+```{r}
+grades2 = grades %>% drop_na()  
+summary(grades2)
+vim_plot = aggr(grades2, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+  
+  There are 89 rows in this new data frame, compared to the 99 in our original dataset. 
+
+***Task 4***  
+```{r}
+grades3 = grades %>% select(-Tutorial,-Midterm,-TakeHome,-Final) 
+vim_plot = aggr(grades3, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+  In doing column-wise deletion, we are left with only 2 columns in the dataset. In our original dataset, we began with 6 columns. 
+  
+***Task 5***  
+  I believe the row-wise deletion method is preferable for this dataset because that method still has the original 6 variables from the starting dataset. This allows for more meaningful investigation of the data, whereas the column-wise deletion leaves us with only prefix (enrollment year) and assignment. Having more data represented by the different variables will allow for more meaningful connections to be made. 
+  
+***Task 6***
+```{r}
+grades_imp = mice(grades, m=1, method = "pmm", seed = 12345)
+summary(grades_imp)
+densityplot(grades_imp)
+grades_complete = complete(grades_imp)
+summary(grades_complete)
+```
+
+***Task 7***
+
+  Working with missing data can often lead to issues when it comes to analysing data. For one, it can lead to skewed results if the dataset has not been cleaned prior to use if there are certain variables missing more data than others. Along with that, by cleaning data we can often lose important variables. For example, in doing column-wise deletion, we will lose entire columns that were missing data, which gives us less variables to work with. Another method for dealing with missing data is imputation, which is where we come up with an estimate for the missing values. This method may not always be the best to choose though because it is only preferable for variables with numerical values, versus those with categorical values (i.e. yes/no) as those are harder to predict. 
